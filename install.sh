@@ -2,13 +2,24 @@
 set -euo pipefail
 
 APP_NAME="chudsay"
+REPO="segfaultcel/libchud"
+BRANCH="${BRANCH:-main}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
-repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RAW_BASE="https://raw.githubusercontent.com/$REPO/$BRANCH"
 
 mkdir -p "$INSTALL_DIR"
 
-install -m 755 "$repo_dir/$APP_NAME" "$INSTALL_DIR/$APP_NAME"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL "$RAW_BASE/$APP_NAME" -o "$INSTALL_DIR/$APP_NAME"
+elif command -v wget >/dev/null 2>&1; then
+  wget -qO "$INSTALL_DIR/$APP_NAME" "$RAW_BASE/$APP_NAME"
+else
+  echo "chudsay installer: curl or wget is required" >&2
+  exit 1
+fi
+
+chmod +x "$INSTALL_DIR/$APP_NAME"
 
 echo "Installed $APP_NAME to $INSTALL_DIR/$APP_NAME"
 
