@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="0.1.1"
+DEFAULT_MESSAGE="chud"
+DEFAULT_WIDTH=60
+
+usage() {
+  printf '%s\n' \
+"chudsay - like cowsay, but chudder
+
+Usage:
+  chudsay [options] [message]
+
+Options:
+  -h, --help        Show this help message
+  -v, --version     Show version
+  -w, --width N     Wrap message at N characters
+
+Examples:
+  chudsay hello
+  chudsay \"many words go here\"
+  echo \"hello from stdin\" | chudsay
+  chudsay --width 30 \"this is a long message that will wrap\""
+}
+
+die() {
+  printf 'chudsay: %s\n' "$*" >&2
+  exit 1
+}
+
+repeat_char() {
+  char="$1"
+  count="$2"
+  out=""
+
+  while [ "$count" -gt 0 ]; do
+    out="${out}${char}"
+    count=$((count - 1))
+  done
+
+  printf '%s' "$out"
+}
+
+is_number() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+add_line() {
+  lines_count=$((lines_count + 1))
+  lines[$lines_count]="$1"
+
+  if [ "${#1}" -gt "$max_len" ]; then
+    max_len="${#1}"
+  fi
+}
+
+wrap_and_add() {
+  input="$1"
+  width="$2"
+
+  current=""
+
+  old_ifs="$IFS"
+  IFS=' 	'
+
+  for word in $input; do
+    if [ -z "$current" ]; then
+      current="$word"
+    elif [ "$((${#current} + 1 + ${#word}))" -le "$width" ]; then
+      current="$current $word"
+    else
+      add_line "$current"
+      current="$word"
+    fi
+  done
+
+  IFS="$old_ifs"
+
+  if [ -n "$current" ]; then
+    add_line "$current"
+  fi
+}
+
+width="$DEFAULT_WIDTH"
+args=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -v|--version)
+      printf 'chudsay %s\n' "$VERSION"
+      exit 0
+      ;;
+    -w|--width)
+      [ "$#" -ge 2 ] || die "--width requires a number"
+      is_number "$2" || die "--width must be a number"
+      width="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      while [ "$#" -gt 0 ]; do
+        if [ -z "$args" ]; then
+          args="$1"
+        else
+          args="$args $1"
+        fi
+        shift
+      done
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      if [ -z "$args" ]; then
+        args="$1"
+      else
+        args="$args $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [ -n "$args" ]; then
+  msg="$args"
+elif [ ! -t 0 ]; then
+  msg=""
+  while IFS= read -r input_line; do
+    if [ -z "$msg" ]; then
+      msg="$input_line"
+    else
+      msg="${msg}
+${input_line}"
+    fi
+  done
+else
+  msg="$DEFAULT_MESSAGE"
+fi
+
+[ -n "$msg" ] || msg="$DEFAULT_MESSAGE"
+
+if [ "$width" -lt 10 ]; then
+  width=10
+fi
+
+lines_count=0
+max_len=0
+declare -a lines
+
+remaining="$msg"
+
+while :; do
+  case "$remaining" in
+    *'
+'*)
+      line="${remaining%%'
+'*}"
+      remaining="${remaining#*'
+'}"
+
+      if [ -n "$line" ]; then
+        wrap_and_add "$line" "$width"
+      else
+        add_line ""
+      fi
+      ;;
+    *)
+      if [ -n "$remaining" ]; then
+        wrap_and_add "$remaining" "$width"
+      fi
+      break
+      ;;
+  esac
+done
+
+if [ "$lines_count" -eq 0 ]; then
+  add_line "$DEFAULT_MESSAGE"
+fi
+
+top_border="$(repeat_char "_" "$((max_len + 2))")"
+bottom_border="$(repeat_char "-" "$((max_len + 2))")"
+
+printf ' %s\n' "$top_border"
+
+if [ "$lines_count" -eq 1 ]; then
+  printf '/ %-*s \\\n' "$max_len" "${lines[1]}"
+else
+  i=1
+  while [ "$i" -le "$lines_count" ]; do
+    line="${lines[$i]}"
+
+    if [ "$i" -eq 1 ]; then
+      left="/"
+      right="\\"
+    elif [ "$i" -eq "$lines_count" ]; then
+      left="\\"
+      right="/"
+    else
+      left="|"
+      right="|"
+    fi
+
+    printf '%s %-*s %s\n' "$left" "$max_len" "$line" "$right"
+    i=$((i + 1))
+  done
+fi
+
+printf ' %s\n' "$bottom_border"
+
+printf '%s\n' '
+                         \
+                          \
+                                    @@@@@@@@@@@@@@@@@@
+                         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                 @@@@@@@@@@@@@@@@%+:...........   .......+#%%@@@@@@@@@@@@@@@@@@@@@@@@
+                 @@@@@@@@#-.......                              ........==-:..-**@@@@
+                @@@@@@#=..                                                     .:@@@@
+               @@@@@@-..                                                       .-@@@@@
+               @@@@*..                                        ...               =@@@@@
+               @@@@:                      .:...               .*:               +@@@@@@
+              @@@@@-                      ..*:.              .-+.               *@@@@@@
+             @@@@@@-                        ..+:.         ..:+..               .=##@@@#=*%%@@
+             @@@@@@:    ..--:.....            .:          ..=..              .....=@%-.. ..#@
+             @@@@@#.     :%@@@%%#+-......               ...        ......:-=+*##=.:#.   ..+@
+             @@@@@=.     .-@@@@@@@@@@@@%*-..    ...     .+.    ...=#@@@@@@@@@@@%..*:.   .=@
+       @%###@@@@@*..     ..=#%@@@@@@@@@@@@@%-..=*:.     .-+::=%@@@@@@@@@@@@@%+:.:+:.  ..+@
+       @=....*@@+==+=-...==.:::--=+**#%@@@@@@%+..        ..%@@@@@@@@@@@@#*=:...-+..  ..*@
+        @+....=-   ...:-**...:+--#@@%#*-..+-:::::---===+++**+=--:::--=+**##%=.+-..  .:#@
+         @@-..-+       .:+. ..-*-:+#=...==+:   ==.   ...*.+:.  .++..-@@@#...**-.   .-@
+           @#:.*..     .:+.   .....::::...+: ..+:.     .-=+:.   ..:++==---=+*+..  .=%@
+             %+=+.      .+=:......       .+.  .*.       :++:.       .........=-.   .#@
+              @@#=..    ....:-+*#**+=----=+. ..#.       .+*+:. .............-*=.   .%
+                 #-.          ......     ... .:*        .=-...-+*#####**+-:....    :@
+                 @=.                          -+        .-=.                       -@
+                 @=.                          -=.       .:+.                      .+@
+                 @=.                          :*        ..+:.                     .%
+                 @=.                        ..=-.         -=                    ..+@
+                 @=.                        .:+.          -=.                    :#@
+                 @+.                      ...*+. ..    ...+:.                   .-%
+                  @=.                     .:*:=+=+-::::+%#-*..                  .-@
+                   @=.                  ..==.. ...:::::.....+-.                 .=@
+                    %-.                 ....               .... ....            .+@
+                    @*.           .:*.       .......     ....   ...=+..       ..#@
+                     *:         ..==..    ...:+=--=*=::=++==+=..  ...+-.      .+@
+                     %-.        .+-. ...:+#*-..     ....    ..:**:.. .==     .:%
+                     @=.        ... .:+=........      ..       ..:+-....    ..+@
+                     @#..          .:*+============================*%-..    .-#
+                      @+..      ..:*-+...........    ..............+=-+.   .:%@
+                       @%:.. ...:*-..=-..                    ....-*:...*=..-@
+                         %=. ..+-.. ..==..                  .:-++...  ....+@
+                          @*.....    ...=+:...      ....:=++=:...      .:#@
+                            %-.         ...-+*#**+*##*=:.....        ..#@
+                              @%=..         ..-+=:..:=+=..       ..:#@
+                                @%+..       .-:..   ....:.      ..+@
+                                   @*...                     ..-%@
+                                    @%=...              ....=#@
+                                      @%+:..            .=#@
+                                         @%#-.........:+%@
+                                             @@@@@@@@@'
