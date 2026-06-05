@@ -1,12 +1,16 @@
 # libchud
 
-Mac only right now!
+Mac and linux only right now!
 
 `libchud` provides `chudsay`, a tiny Bash command inspired by `cowsay`.
 
 Install:
 
 curl -fsSL https://raw.githubusercontent.com/segfaultcel/libchud/main/install.sh | bash
+
+Usage:
+
+chudsay "nothing ever happens"
 
 ```text
  _____________
