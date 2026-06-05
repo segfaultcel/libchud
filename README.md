@@ -6,11 +6,11 @@ Mac and linux only right now!
 
 Install:
 
-curl -fsSL https://raw.githubusercontent.com/segfaultcel/libchud/main/install.sh | bash
+`curl -fsSL https://raw.githubusercontent.com/segfaultcel/libchud/main/install.sh | bash`
 
 Usage:
 
-chudsay "nothing ever happens"
+`chudsay "nothing ever happens"`
 
 ```text
  ______________________
