@@ -1,5 +1,7 @@
 # libchud
 
+Mac only right now!
+
 `libchud` provides `chudsay`, a tiny Bash command inspired by `cowsay`.
 
 Install:
